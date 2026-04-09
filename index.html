@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEILS Attendant Registry</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <script async defer src="https://apis.google.com/js/api.js" onerror="handleApiLoadError()"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2c5f2d;
+            --primary-light: #3d7a3d;
+            --secondary: #97bc62;
+            --bg: #f5f7fa;
+            --surface: #ffffff;
+            --text: #333333;
+            --text-light: #666666;
+            --border: #e0e0e0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header h1::before {
+            content: '📊';
+            font-size: 1.75rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Source Toggle */
+        .source-toggle {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 0.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .source-btn {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .source-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .source-btn:not(.active):hover {
+            background: #f0f0f0;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .google-sheets-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .sheet-input-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .sheet-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .sheet-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .sheet-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f0f8f0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .status-dot.connected {
+            background: #4caf50;
+        }
+
+        .status-dot.disconnected {
+            background: #f44336;
+        }
+
+        .sync-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 150px;
+            border: 2px dashed var(--secondary);
+            border-radius: 8px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: var(--primary);
+            background: #f0f5f0;
+        }
+
+        .file-input-wrapper.dragover {
+            border-color: var(--primary);
+            background: #e8f5e8;
+            transform: scale(1.02);
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-text {
+            font-size: 1rem;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        .upload-hint {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            text-align: center;
+        }
+
+        .file-info {
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f0f8f0;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .file-info.visible {
+            display: flex;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+        }
+
+        .file-name {
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .file-size {
+            color: var(--text-light);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-light);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-loading {
+            position: relative;
+            pointer-events: none;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin: -8px 0 0 -8px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Filter Section */
+        .filter-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .filter-section.visible {
+            display: block;
+        }
+
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .filter-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-light);
+        }
+
+        .filter-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Data Section */
+        .data-section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            display: none;
+        }
+
+        .data-section.visible {
+            display: block;
+        }
+
+        .data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .data-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .data-stats {
+            display: flex;
+            gap: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #f5f7fa;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th:hover {
+            background: #e8eaed;
+        }
+
+        .sort-indicator {
+            margin-left: 0.5rem;
+            color: var(--primary);
+        }
+
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        tr:hover {
+            background: #f0f0f0;
+        }
+
+        /* Modals */
+        .filter-section[style*="block"] {
+            display: block !important;
+            margin: 1rem;
+            margin-bottom: 0;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-light);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .loading-spinner-icon {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
+            display: block;
+            margin-bottom: 1rem;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            background: #4caf50;
+        }
+
+        .toast.error {
+            background: #f44336;
+        }
+
+        .toast.hidden {
+            display: none;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .header, .upload-section, .google-sheets-section, 
+            .filter-section, .data-header, .source-toggle {
+                display: none !important;
+            }
+
+            .data-section {
+                display: block !important;
+                box-shadow: none;
+            }
+
+            .table-container {
+                overflow: visible;
+            }
+
+            table {
+                page-break-inside: auto;
+            }
+
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+
+            th, td {
+                border: 1px solid #ddd;
+            }
+
+            tr:nth-child(even) {
+                background: #f5f7fa !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            tr:hover {
+                background: none;
+            }
+
+            .empty-state {
+                display: none;
+            }
+
+            .print-header {
+                display: block !important;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #2c5f2d;
+            }
+
+            .print-header h1 {
+                font-size: 18px;
+                color: #2c5f2d;
+                margin-bottom: 5px;
+            }
+
+            .print-header .print-date {
+                font-size: 12px;
+                color: #666;
+            }
+
+            .print-header .print-message {
+                font-size: 14px;
+                margin-top: 10px;
+                font-style: italic;
+            }
+
+            .print-header .print-stats {
+                font-size: 12px;
+                margin-top: 5px;
+                color: #333;
+            }
+        }
+
+        .print-header {
+            display: none;
+        }
+
+        /* Editable row */
+        tr.editing {
+            background: #fffde7;
+        }
+
+        td input.editable-input {
+            width: 100%;
+            padding: 0.25rem;
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            font-size: inherit;
+        }
+
+        td .edit-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        td .edit-actions button {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        /* Sync status */
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .last-sync {
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>NEILS Attendant Registry</h1>
+    </header>
+
+    <main class="container">
+        <!-- Source Toggle -->
+        <div class="source-toggle">
+            <button class="source-btn active" id="excelBtn" onclick="switchSource('excel')">
+                📁 Load from Excel File
+            </button>
+            <button class="source-btn" id="sheetsBtn" onclick="switchSource('sheets')">
+                ☁️ Connect to Google Sheets
+            </button>
+        </div>
+
+        <!-- Excel Upload Section -->
+        <section class="upload-section" id="excelSection">
+            <div class="file-input-wrapper" id="dropZone">
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" webkitdirectory="">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Drop your Excel file here or click to browse</div>
+                <div class="upload-hint">Supports .xlsx, .xls, and .csv files<br>Or copy your Excel file to the AttendantsApp folder and rename to 'data.xlsx'</div>
+            </div>
+            <div class="file-info" id="fileInfo">
+                <span class="file-icon">📄</span>
+                <span class="file-name" id="fileName"></span>
+                <span class="file-size" id="fileSize"></span>
+                <button class="btn btn-outline" id="clearFile">Clear</button>
+            </div>
+        </section>
+
+        <!-- Google Sheets Section -->
+        <section class="google-sheets-section hidden" id="sheetsSection">
+            <div class="sheet-input-group">
+                <input type="text" class="sheet-input" id="sheetUrlInput" 
+                       placeholder="Paste Google Sheet URL or enter Sheet ID...">
+                <button class="btn btn-primary" id="connectSheetBtn" onclick="connectToSheet()">
+                    🔗 Connect
+                </button>
+            </div>
+            
+            <div class="sheet-info hidden" id="sheetInfo">
+                <div class="connection-status">
+                    <span class="status-dot connected" id="statusDot"></span>
+                    <span id="connectionStatus">Connected</span>
+                </div>
+                <div class="sync-status">
+                    <span>Last sync: </span>
+                    <span class="last-sync" id="lastSyncTime">Never</span>
+                </div>
+            </div>
+
+            <div class="sync-buttons hidden" id="syncButtons">
+                <button class="btn btn-secondary" onclick="syncFromSheet()">
+                    🔄 Sync Data
+                </button>
+                <button class="btn btn-outline" onclick="disconnectFromSheet()">
+                    Disconnect
+                </button>
+            </div>
+        </section>
+
+        <section class="filter-section" id="filterSection">
+            <div class="filter-header">
+                <h2 class="filter-title">Filter Data</h2>
+                <div class="filter-actions">
+                    <button class="btn btn-outline" id="clearFilters">Clear Filters</button>
+                    <button class="btn btn-primary" id="applyFilters">Apply Filters</button>
+                </div>
+            </div>
+            <div class="filters-grid" id="filtersGrid"></div>
+        </section>
+
+        <section class="data-section" id="dataSection">
+            <div class="print-header" id="printHeader">
+                <h1 id="printTitle">Attendant-Aide Registry Report</h1>
+                <div class="print-date" id="printDate"></div>
+                <div class="print-message" id="printMessage"></div>
+                <div class="print-stats" id="printStats"></div>
+            </div>
+            <div class="data-header">
+                <h2 class="data-title">Data Table</h2>
+                <div class="data-stats">
+                    <span>Total Rows: <span class="stat-value" id="totalRows">0</span></span>
+                    <span>Filtered: <span class="stat-value" id="filteredRows">0</span></span>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" id="addAttendantBtn">Add Attendant</button>
+                    <button class="btn btn-primary" id="exportPdfBtn">Save as PDF</button>
+                    <button class="btn btn-primary" id="printBtn">Print</button>
+                    <button class="btn btn-primary hidden" id="saveToSheetBtn">Save to Sheet</button>
+                </div>
+            </div>
+            <div id="pdfExportBox" class="filter-section" style="display:none; margin: 1rem; margin-bottom: 0;">
+                <div class="filter-header">
+                    <h2 class="filter-title">PDF Export</h2>
+                </div>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label class="filter-label">Custom Message (appears above table)</label>
+                        <input type="text" class="filter-input" id="pdfMessage" placeholder="Enter message for PDF...">
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; text-align: right;">
+                    <button class="btn btn-outline" id="cancelPdfBtn">Cancel</button>
+                    <button class="btn btn-primary" id="savePdfBtn">Download PDF</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div id="addAttendantModal" class="filter-section" style="display:none; margin: 1rem; margin-bottom: 0;">
+                <div class="filter-header">
+                    <h2 class="filter-title">Add New Attendant</h2>
+                </div>
+                <div class="filters-grid" id="attendantFormGrid"></div>
+                <div style="margin-top: 1rem; text-align: right;">
+                    <button class="btn btn-outline" id="cancelAddBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveAddBtn">Add Attendant</button>
+                </div>
+            </div>
+            <div id="printModal" class="filter-section" style="display:none; margin: 1rem; margin-bottom: 0;">
+                <div class="filter-header">
+                    <h2 class="filter-title">Print Options</h2>
+                </div>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label class="filter-label">Custom Message (appears above table)</label>
+                        <input type="text" class="filter-input" id="printMessageInput" placeholder="Enter message for print...">
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; text-align: right;">
+                    <button class="btn btn-outline" id="cancelPrintBtn">Cancel</button>
+                    <button class="btn btn-primary" id="confirmPrintBtn">Print</button>
+                </div>
+            </div>
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">📊</div>
+                <p>No data to display</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner">
+            <span class="loading-spinner-icon">⏳</span>
+            <div id="loadingText">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast hidden" id="toast"></div>
+
+    <script>
+        // State
+        let workbook = null;
+        let currentData = [];
+        let filteredData = [];
+        let headers = [];
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        let filters = {};
+        let filterOptions = {};
+        let recentFiles = [];
+        let currentSource = 'excel'; // 'excel' or 'sheets'
+        let sheetUrl = '';
+        let lastSyncTime = null;
+        let isConnectedToSheet = false;
+
+        // Mapping from row index to sheet row number (for updates)
+        let rowIndexToSheetRow = {};
+
+        const MAX_RECENT_FILES = 5;
+
+        // DOM Elements
+        const excelBtn = document.getElementById('excelBtn');
+        const sheetsBtn = document.getElementById('sheetsBtn');
+        const excelSection = document.getElementById('excelSection');
+        const sheetsSection = document.getElementById('sheetsSection');
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const clearFileBtn = document.getElementById('clearFile');
+        const sheetUrlInput = document.getElementById('sheetUrlInput');
+        const connectSheetBtn = document.getElementById('connectSheetBtn');
+        const sheetInfoDiv = document.getElementById('sheetInfo');
+        const syncButtonsDiv = document.getElementById('syncButtons');
+        const statusDot = document.getElementById('statusDot');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const lastSyncTimeEl = document.getElementById('lastSyncTime');
+        const filterSection = document.getElementById('filterSection');
+        const filtersGrid = document.getElementById('filtersGrid');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        const applyFiltersBtn = document.getElementById('applyFilters');
+        const dataSection = document.getElementById('dataSection');
+        const tableHead = document.getElementById('tableHead');
+        const tableBody = document.getElementById('tableBody');
+        const totalRowsEl = document.getElementById('totalRows');
+        const filteredRowsEl = document.getElementById('filteredRows');
+        const emptyState = document.getElementById('emptyState');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const pdfExportBox = document.getElementById('pdfExportBox');
+        const pdfMessage = document.getElementById('pdfMessage');
+        const cancelPdfBtn = document.getElementById('cancelPdfBtn');
+        const savePdfBtn = document.getElementById('savePdfBtn');
+        const addAttendantBtn = document.getElementById('addAttendantBtn');
+        const addAttendantModal = document.getElementById('addAttendantModal');
+        const printBtn = document.getElementById('printBtn');
+        const printModal = document.getElementById('printModal');
+        const printMessageInput = document.getElementById('printMessageInput');
+        const cancelPrintBtn = document.getElementById('cancelPrintBtn');
+        const confirmPrintBtn = document.getElementById('confirmPrintBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const toast = document.getElementById('toast');
+        const saveToSheetBtn = document.getElementById('saveToSheetBtn');
+        const attendantFormGrid = document.getElementById('attendantFormGrid');
+        const cancelAddBtn = document.getElementById('cancelAddBtn');
+        const saveAddBtn = document.getElementById('saveAddBtn');
+
+        // Google Apps Script configuration
+        // IMPORTANT: Replace this with your deployed GAS web app URL
+        const GAS_WEB_APP_URL = 'YOUR_DEPLOYED_GAS_WEB_APP_URL';
+
+        // Initialize
+        function init() {
+            // Load saved sheet URL
+            const savedUrl = localStorage.getItem('sheetUrl');
+            if (savedUrl) {
+                sheetUrlInput.value = savedUrl;
+            }
+
+            // Check if previously connected
+            const wasConnected = localStorage.getItem('sheetConnected') === 'true';
+            if (wasConnected && savedUrl) {
+                sheetUrl = savedUrl;
+                isConnectedToSheet = true;
+                showSheetConnectedUI();
+            }
+
+            // Event listeners for Excel
+            setupExcelEventListeners();
+
+            // Event listeners for other elements
+            setupOtherEventListeners();
+        }
+
+        // Switch between Excel and Google Sheets
+        function switchSource(source) {
+            currentSource = source;
+            
+            if (source === 'excel') {
+                excelBtn.classList.add('active');
+                sheetsBtn.classList.remove('active');
+                excelSection.classList.remove('hidden');
+                sheetsSection.classList.add('hidden');
+            } else {
+                excelBtn.classList.remove('active');
+                sheetsBtn.classList.add('active');
+                excelSection.classList.add('hidden');
+                sheetsSection.classList.remove('hidden');
+            }
+        }
+
+        // Setup Excel event listeners
+        function setupExcelEventListeners() {
+            // File drop zone
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+
+            // File input
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            // Clear file
+            clearFileBtn.addEventListener('click', clearFile);
+        }
+
+        // Setup other event listeners
+        function setupOtherEventListeners() {
+            clearFiltersBtn.addEventListener('click', clearAllFilters);
+            applyFiltersBtn.addEventListener('click', applyFilters);
+            exportPdfBtn.addEventListener('click', showPdfExportBox);
+            addAttendantBtn.addEventListener('click', showAddAttendantModal);
+            printBtn.addEventListener('click', showPrintModal);
+            
+            cancelPdfBtn.addEventListener('click', hidePdfExportBox);
+            savePdfBtn.addEventListener('click', savePdf);
+            
+            cancelPrintBtn.addEventListener('click', hidePrintModal);
+            confirmPrintBtn.addEventListener('click', doPrint);
+
+            cancelAddBtn.addEventListener('click', hideAddAttendantModal);
+            saveAddBtn.addEventListener('click', addNewAttendant);
+
+            saveToSheetBtn.addEventListener('click', saveToSheet);
+
+            // Enter key for sheet URL
+            sheetUrlInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    connectToSheet();
+                }
+            });
+        }
+
+        // Show loading
+        function showLoading(message) {
+            loadingText.textContent = message || 'Loading...';
+            loadingOverlay.classList.remove('hidden');
+        }
+
+        // Hide loading
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+
+        // Show toast notification
+        function showToast(message, type) {
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || 'success');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Handle API load error
+        function handleApiLoadError() {
+            console.log('Google API failed to load - using fallback');
+        }
+
+        // Connect to Google Sheet
+        async function connectToSheet() {
+            const url = sheetUrlInput.value.trim();
+            
+            if (!url) {
+                showToast('Please enter a Google Sheet URL or ID', 'error');
+                return;
+            }
+
+            showLoading('Connecting to Google Sheet...');
+
+            try {
+                // Use the Google Apps Script backend
+                const result = await callGAS('testConnection', { sheetUrl: url });
+                
+                if (result.success) {
+                    sheetUrl = url;
+                    isConnectedToSheet = true;
+                    localStorage.setItem('sheetUrl', url);
+                    localStorage.setItem('sheetConnected', 'true');
+                    
+                    showSheetConnectedUI();
+                    await syncFromSheet();
+                    showToast('Connected to ' + result.spreadsheetTitle, 'success');
+                } else {
+                    showToast(result.error || 'Failed to connect', 'error');
+                }
+            } catch (e) {
+                console.error('Connection error:', e);
+                handleGASError(e, 'connecting');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Show connected UI
+        function showSheetConnectedUI() {
+            sheetInfoDiv.classList.remove('hidden');
+            syncButtonsDiv.classList.remove('hidden');
+            saveToSheetBtn.classList.remove('hidden');
+            statusDot.classList.add('connected');
+            connectionStatus.textContent = 'Connected';
+        }
+
+        // Show disconnected UI
+        function showSheetDisconnectedUI() {
+            sheetInfoDiv.classList.add('hidden');
+            syncButtonsDiv.classList.add('hidden');
+            saveToSheetBtn.classList.add('hidden');
+            statusDot.classList.remove('connected');
+            connectionStatus.textContent = 'Disconnected';
+        }
+
+        // Sync data from Google Sheet
+        async function syncFromSheet() {
+            if (!sheetUrl) {
+                showToast('Not connected to a Google Sheet', 'error');
+                return;
+            }
+
+            showLoading('Syncing from Google Sheet...');
+
+            try {
+                const result = await callGAS('getSheetData', { sheetUrl: sheetUrl });
+                
+                if (result.success) {
+                    headers = result.headers;
+                    currentData = result.data;
+                    filteredData = [...currentData];
+                    
+                    // Create mapping from data index to sheet row number
+                    rowIndexToSheetRow = {};
+                    currentData.forEach((row, index) => {
+                        rowIndexToSheetRow[index] = index + 2; // +2 because data starts at row 2 (row 1 is header)
+                    });
+                    
+                    lastSyncTime = new Date();
+                    localStorage.setItem('lastSyncTime', lastSyncTime.toISOString());
+                    
+                    // Update UI
+                    lastSyncTimeEl.textContent = lastSyncTime.toLocaleTimeString();
+                    filterSection.classList.add('visible');
+                    dataSection.classList.add('visible');
+                    
+                    buildFilters();
+                    renderTable();
+                    updateStats();
+                    
+                    showToast('Synced ' + currentData.length + ' rows', 'success');
+                } else {
+                    showToast(result.error || 'Failed to sync', 'error');
+                }
+            } catch (e) {
+                console.error('Sync error:', e);
+                handleGASError(e, 'syncing');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Disconnect from Google Sheet
+        function disconnectFromSheet() {
+            sheetUrl = '';
+            isConnectedToSheet = false;
+            localStorage.removeItem('sheetUrl');
+            localStorage.removeItem('sheetConnected');
+            localStorage.removeItem('lastSyncTime');
+            
+            showSheetDisconnectedUI();
+            showToast('Disconnected from Google Sheet', 'success');
+            
+            // Clear data
+            clearData();
+        }
+
+        // Save data to Google Sheet
+        async function saveToSheet() {
+            if (!sheetUrl || !isConnectedToSheet) {
+                showToast('Not connected to a Google Sheet', 'error');
+                return;
+            }
+
+            if (currentData.length === 0) {
+                showToast('No data to save', 'error');
+                return;
+            }
+
+            showLoading('Saving to Google Sheet...');
+
+            try {
+                // For now, add new rows (would need more complex logic for updates)
+                const newData = currentData.map(row => {
+                    const obj = {};
+                    headers.forEach(header => {
+                        obj[header] = row[header];
+                    });
+                    return obj;
+                });
+
+                // Add rows one by one (in production, use bulkUpdate)
+                for (const row of newData) {
+                    await callGAS('addRow', { sheetUrl: sheetUrl, newRow: row });
+                }
+                
+                // Resync after save
+                await syncFromSheet();
+                
+                showToast('Saved to Google Sheet', 'success');
+            } catch (e) {
+                console.error('Save error:', e);
+                handleGASError(e, 'saving');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Call Google Apps Script function
+        async function callGAS(functionName, params) {
+            return new Promise((resolve, reject) => {
+                // Check if google.script.run is available
+                if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                    reject(new Error('Google Apps Script API not available. Please run this app through Google Apps Script Web App or a hosted server.'));
+                    return;
+                }
+                
+                google.script.run
+                    .withSuccessHandler(resolve)
+                    .withFailureHandler(reject)
+                    [functionName](params);
+            });
+        }
+
+        // Handle missing Google API gracefully
+        function handleGASError(error, operation) {
+            console.error('GAS Error:', error);
+            if (error.message && error.message.includes('Google Apps Script API not available')) {
+                showToast('Google Sheets mode requires hosting. Please use Excel mode or deploy as Web App.', 'error');
+            } else {
+                showToast('Error ' + operation + ': ' + error.message, 'error');
+            }
+            hideLoading();
+        }
+
+        // Handle Excel file
+        function handleFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                        header: 1,
+                        defval: ''
+                    });
+                    
+                    if (jsonData.length > 0) {
+                        // First row is headers
+                        headers = jsonData[0];
+                        
+                        // Rest is data
+                        currentData = jsonData.slice(1).map(row => {
+                            const obj = {};
+                            headers.forEach((header, index) => {
+                                obj[header] = row[index];
+                            });
+                            return obj;
+                        }).filter(row => Object.values(row).some(v => v !== undefined && v !== ''));
+                        
+                        filteredData = [...currentData];
+                        
+                        // Show file info
+                        fileName.textContent = file.name;
+                        fileSize.textContent = formatFileSize(file.size);
+                        fileInfo.classList.add('visible');
+                        
+                        // Hide drop zone, show file info
+                        dropZone.style.display = 'none';
+                        
+                        // Show sections
+                        filterSection.classList.add('visible');
+                        dataSection.classList.add('visible');
+                        
+                        // Build filters and render
+                        buildFilters();
+                        renderTable();
+                        updateStats();
+                    } else {
+                        alert('No data found in the Excel file');
+                    }
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                    if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
+                        alert('Could not read the Attendant-Aide Registry sheet. Available sheets: ' + workbook.SheetNames.join(', '));
+                    } else {
+                        alert('Error reading Excel file. Please make sure it\'s a valid .xlsx or .xls file. Error: ' + error.message);
+                    }
+                }
+            };
+            
+            reader.onerror = function() {
+                alert('Error reading file');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Clear file
+        function clearFile() {
+            workbook = null;
+            currentData = [];
+            filteredData = [];
+            headers = [];
+            
+            fileInput.value = '';
+            dropZone.style.display = 'flex';
+            fileInfo.classList.remove('visible');
+            
+            filterSection.classList.remove('visible');
+            dataSection.classList.remove('visible');
+        }
+
+        // Clear all data
+        function clearData() {
+            currentData = [];
+            filteredData = [];
+            headers = [];
+            
+            filterSection.classList.remove('visible');
+            dataSection.classList.remove('visible');
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Build filter inputs
+        function buildFilters() {
+            filtersGrid.innerHTML = '';
+            filters = {};
+            
+            const hasDropdowns = Object.keys(filterOptions).length > 0;
+            const columnToSkip = [8, 9, 10, 11, 12];
+            
+            headers.forEach((header, index) => {
+                if (columnToSkip.includes(index)) return;
+                
+                const filterGroup = document.createElement('div');
+                filterGroup.className = 'filter-group';
+                
+                const label = document.createElement('label');
+                label.className = 'filter-label';
+                label.textContent = header;
+                
+                let input;
+                const dropdownOptions = filterOptions[header];
+                
+                if (hasDropdowns && dropdownOptions && dropdownOptions.length > 0 && dropdownOptions.length < 50) {
+                    input = document.createElement('select');
+                    input.className = 'filter-input';
+                    input.dataset.column = header;
+                    
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = `All ${header}`;
+                    input.appendChild(defaultOption);
+                    
+                    dropdownOptions.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt;
+                        option.textContent = opt;
+                        input.appendChild(option);
+                    });
+                    
+                    input.addEventListener('change', (e) => {
+                        filters[header] = e.target.value;
+                    });
+                } else {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'filter-input';
+                    input.placeholder = `Filter ${header}...`;
+                    input.dataset.column = header;
+                    
+                    input.addEventListener('input', (e) => {
+                        filters[header] = e.target.value.toLowerCase();
+                    });
+                }
+                
+                filterGroup.appendChild(label);
+                filterGroup.appendChild(input);
+                filtersGrid.appendChild(filterGroup);
+            });
+        }
+
+        // Apply filters
+        function applyFilters() {
+            filteredData = currentData.filter(row => {
+                return headers.every(header => {
+                    const filterValue = filters[header];
+                    if (!filterValue) return true;
+                    
+                    const cellValue = row[header];
+                    if (cellValue === null || cellValue === undefined || cellValue === '') return false;
+                    
+                    const cellStr = String(cellValue).toLowerCase().trim();
+                    const filterStr = filterValue.toLowerCase().trim();
+                    
+                    if (cellStr === filterStr) return true;
+                    return cellStr.includes(filterStr);
+                });
+            });
+            
+            renderTable();
+            updateStats();
+        }
+
+        // Clear all filters
+        function clearAllFilters() {
+            filters = {};
+            const inputs = filtersGrid.querySelectorAll('.filter-input');
+            inputs.forEach(input => {
+                input.value = '';
+            });
+            filteredData = [...currentData];
+            renderTable();
+            updateStats();
+        }
+
+        // Sort data
+        function sortData(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            
+            filteredData.sort((a, b) => {
+                const aVal = a[column];
+                const bVal = b[column];
+                
+                if (aVal === null || aVal === undefined) return 1;
+                if (bVal === null || bVal === undefined) return -1;
+                
+                let comparison = 0;
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    comparison = aVal - bVal;
+                } else {
+                    comparison = String(aVal).localeCompare(String(bVal));
+                }
+                
+                return sortDirection === 'asc' ? comparison : -comparison;
+            });
+            
+            renderTable();
+        }
+
+        // Render table
+        function renderTable() {
+            if (filteredData.length === 0) {
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            
+            const columnToSkip = [8, 9, 10, 11, 12];
+            const visibleHeaders = headers.filter((h, i) => columnToSkip.indexOf(i) === -1);
+            
+            // Render headers
+            let theadHtml = '<tr>';
+            visibleHeaders.forEach(function(header) {
+                let sortIndicator = sortColumn === header 
+                    ? (sortDirection === 'asc' ? '↑' : '↓')
+                    : '';
+                let escapedHeader = header.replace(/'/g, "\\'");
+                theadHtml += '<th onclick="sortData(\'' + escapedHeader + '\')">' + header + '<span class="sort-indicator">' + sortIndicator + '</span></th>';
+            });
+            theadHtml += '</tr>';
+            tableHead.innerHTML = theadHtml;
+            
+            // Render body (limit to 1000 rows for performance)
+            const displayData = filteredData.slice(0, 1000);
+            let tbodyHtml = '';
+            displayData.forEach(function(row, rowIndex) {
+                tbodyHtml += '<tr>';
+                visibleHeaders.forEach(function(header) {
+                    let value = row[header];
+                    tbodyHtml += '<td>' + (value !== null && value !== undefined ? value : '') + '</td>';
+                });
+                tbodyHtml += '</tr>';
+            });
+            
+            if (filteredData.length > 1000) {
+                tbodyHtml += '<tr><td colspan="' + visibleHeaders.length + '" style="text-align:center;color:var(--text-light)">Showing first 1000 of ' + filteredData.length + ' rows</td></tr>';
+            }
+            
+            tableBody.innerHTML = tbodyHtml;
+        }
+
+        // Update stats
+        function updateStats() {
+            totalRowsEl.textContent = currentData.length;
+            filteredRowsEl.textContent = filteredData.length;
+        }
+
+        // Save as PDF
+        function savePdf() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            let yPos = 20;
+            
+            // Add title
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Attendant-Aide Registry Report', 14, yPos);
+            yPos += 10;
+            
+            // Add date
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            const now = new Date();
+            doc.text('Generated: ' + now.toLocaleDateString() + ' ' + now.toLocaleTimeString(), 14, yPos);
+            yPos += 10;
+            
+            // Add custom message
+            const message = pdfMessage.value.trim();
+            if (message) {
+                doc.text(message, 14, yPos);
+                yPos += 10;
+            }
+            
+            // Add title
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Attendant-Aide Registry Report', 14, yPos);
+            yPos += 10;
+            
+            doc.text('Total Records: ' + filteredData.length, 14, yPos);
+            yPos += 15;
+            
+            const columnToSkip = [8, 9, 10, 11, 12];
+            const visibleHeaders = headers.filter((h, i) => columnToSkip.indexOf(i) === -1);
+            
+            const tableData = filteredData.map(function(row) {
+                return visibleHeaders.map(function(h) {
+                    let val = row[h];
+                    return (val !== null && val !== undefined) ? String(val) : '';
+                });
+            });
+            
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 14;
+            const availableWidth = pageWidth - (margin * 2);
+            const colCount = visibleHeaders.length;
+            const colWidth = Math.floor(availableWidth / colCount);
+            
+            doc.autoTable({
+                head: [visibleHeaders],
+                body: tableData,
+                startY: yPos,
+                styles: { 
+                    fontSize: 8, 
+                    cellPadding: 1,
+                    overflow: 'linebreak',
+                    columnWidth: colWidth
+                },
+                headStyles: { 
+                    fillColor: [44, 95, 45], 
+                    textColor: 255,
+                    fontStyle: 'bold'
+                },
+                alternateRowStyles: { fillColor: [245, 247, 250] },
+                margin: { left: margin, right: margin },
+                tableWidth: 'wrap',
+                columnStyles: {
+                    0: { cellWidth: colWidth },
+                    1: { cellWidth: colWidth },
+                    2: { cellWidth: colWidth },
+                    3: { cellWidth: colWidth },
+                    4: { cellWidth: colWidth },
+                    5: { cellWidth: colWidth },
+                    6: { cellWidth: colWidth },
+                    7: { cellWidth: colWidth },
+                    8: { cellWidth: colWidth }
+                },
+                horizontalPageBreak: true,
+                didDrawPage: function(data) {
+                    const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+                    doc.setFontSize(8);
+                    doc.text('Page ' + pageNum, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+                }
+            });
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const filename = 'Attendant-Aide-Registry_' + timestamp + '.pdf';
+            
+            doc.save(filename);
+            hidePdfExportBox();
+        }
+
+        // Show PDF export box
+        function showPdfExportBox() {
+            if (filteredData.length === 0) {
+                alert('No data to export');
+                return;
+            }
+            pdfMessage.value = '';
+            pdfExportBox.style.display = 'block';
+        }
+
+        // Hide PDF export box
+        function hidePdfExportBox() {
+            pdfExportBox.style.display = 'none';
+        }
+
+        // Show Print modal
+        function showPrintModal() {
+            if (filteredData.length === 0) {
+                alert('No data to print');
+                return;
+            }
+            printMessageInput.value = '';
+            printModal.style.display = 'block';
+        }
+
+        // Hide Print modal
+        function hidePrintModal() {
+            printModal.style.display = 'none';
+        }
+
+        // Print function
+        function doPrint() {
+            if (filteredData.length === 0) {
+                alert('No data to print');
+                return;
+            }
+            
+            const message = printMessageInput.value.trim();
+            document.getElementById('printTitle').textContent = message || 'Attendant-Aide Registry Report';
+            
+            const now = new Date();
+            document.getElementById('printDate').textContent = 'Printed: ' + now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+            
+            document.getElementById('printMessage').textContent = message ? message : '';
+            document.getElementById('printMessage').style.display = message ? 'block' : 'none';
+            
+            document.getElementById('printStats').textContent = 'Total Records: ' + filteredData.length;
+            
+            hidePrintModal();
+            window.print();
+        }
+
+        // Show Add Attendant modal
+        function showAddAttendantModal() {
+            if (headers.length === 0) {
+                alert('Please load data first');
+                return;
+            }
+            
+            attendantFormGrid.innerHTML = '';
+            
+            const columnToSkip = [8, 9, 10, 11, 12];
+            const visibleHeaders = headers.filter((h, i) => columnToSkip.indexOf(i) === -1);
+            
+            visibleHeaders.forEach(function(header) {
+                const group = document.createElement('div');
+                group.className = 'filter-group';
+                
+                const label = document.createElement('label');
+                label.className = 'filter-label';
+                label.textContent = header;
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'filter-input';
+                input.dataset.column = header;
+                input.placeholder = 'Enter ' + header;
+                
+                group.appendChild(label);
+                group.appendChild(input);
+                attendantFormGrid.appendChild(group);
+            });
+            
+            addAttendantModal.style.display = 'block';
+        }
+
+        // Hide Add Attendant modal
+        function hideAddAttendantModal() {
+            addAttendantModal.style.display = 'none';
+        }
+
+        // Add new attendant
+        function addNewAttendant() {
+            const inputs = attendantFormGrid.querySelectorAll('.filter-input');
+            const newRow = {};
+            
+            inputs.forEach(function(input) {
+                const column = input.dataset.column;
+                newRow[column] = input.value;
+            });
+            
+            let hasData = false;
+            Object.keys(newRow).forEach(function(key) {
+                if (newRow[key] && newRow[key].trim()) {
+                    hasData = true;
+                }
+            });
+            
+            if (!hasData) {
+                alert('Please fill in at least one field');
+                return;
+            }
+            
+            // Add to current data
+            currentData.push(newRow);
+            filteredData = [...currentData];
+            
+            // Update filter options
+            filterOptions = {};
+            headers.forEach(function(header) {
+                const uniqueVals = new Set();
+                currentData.forEach(function(row) {
+                    const val = row[header];
+                    if (val && String(val).trim()) {
+                        uniqueVals.add(String(val).trim());
+                    }
+                });
+                if (uniqueVals.size > 0 && uniqueVals.size < 50) {
+                    filterOptions[header] = Array.from(uniqueVals).sort();
+                }
+            });
+            
+            // If connected to sheet, save immediately
+            if (isConnectedToSheet && sheetUrl) {
+                callGAS('addRow', { sheetUrl: sheetUrl, newRow: newRow })
+                    .then(result => {
+                        if (result.success) {
+                            showToast('Attendant added and saved', 'success');
+                            rowIndexToSheetRow[currentData.length - 1] = result.lastUpdated ? currentData.length + 2 : currentData.length + 2;
+                        } else {
+                            showToast('Added locally but could not save to sheet', 'error');
+                        }
+                    })
+                    .catch(e => {
+                        showToast('Added locally but save failed: ' + e.message, 'error');
+                    });
+            }
+            
+            buildFilters();
+            renderTable();
+            updateStats();
+            hideAddAttendantModal();
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
