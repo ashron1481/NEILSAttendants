@@ -674,37 +674,11 @@
     </header>
 
     <main class="container">
-        <!-- Source Toggle -->
-        <div class="source-toggle">
-            <button class="source-btn active" id="excelBtn" onclick="switchSource('excel')">
-                📁 Load from Excel File
-            </button>
-            <button class="source-btn" id="sheetsBtn" onclick="switchSource('sheets')">
-                ☁️ Connect to Google Sheets
-            </button>
-        </div>
-
-        <!-- Excel Upload Section -->
-        <section class="upload-section" id="excelSection">
-            <div class="file-input-wrapper" id="dropZone">
-                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" webkitdirectory="">
-                <div class="upload-icon">📁</div>
-                <div class="upload-text">Drop your Excel file here or click to browse</div>
-                <div class="upload-hint">Supports .xlsx, .xls, and .csv files<br>Or copy your Excel file to the AttendantsApp folder and rename to 'data.xlsx'</div>
-            </div>
-            <div class="file-info" id="fileInfo">
-                <span class="file-icon">📄</span>
-                <span class="file-name" id="fileName"></span>
-                <span class="file-size" id="fileSize"></span>
-                <button class="btn btn-outline" id="clearFile">Clear</button>
-            </div>
-        </section>
-
         <!-- Google Sheets Section -->
-        <section class="google-sheets-section hidden" id="sheetsSection">
+        <section class="google-sheets-section" id="sheetsSection">
             <div class="sheet-input-group">
                 <input type="text" class="sheet-input" id="sheetUrlInput" 
-                       placeholder="Paste Google Sheet URL or enter Sheet ID...">
+                       placeholder="Paste Google Sheet URL or enter Sheet ID..." value="1l88H88NrKWodroXSmRc-uOtgHZBN-inLD7_SE4WqtrA">
                 <button class="btn btn-primary" id="connectSheetBtn" onclick="connectToSheet()">
                     🔗 Connect
                 </button>
@@ -837,7 +811,6 @@
         let filters = {};
         let filterOptions = {};
         let recentFiles = [];
-        let currentSource = 'excel'; // 'excel' or 'sheets'
         let sheetUrl = '';
         let lastSyncTime = null;
         let isConnectedToSheet = false;
@@ -848,16 +821,6 @@
         const MAX_RECENT_FILES = 5;
 
         // DOM Elements
-        const excelBtn = document.getElementById('excelBtn');
-        const sheetsBtn = document.getElementById('sheetsBtn');
-        const excelSection = document.getElementById('excelSection');
-        const sheetsSection = document.getElementById('sheetsSection');
-        const fileInput = document.getElementById('fileInput');
-        const dropZone = document.getElementById('dropZone');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const clearFileBtn = document.getElementById('clearFile');
         const sheetUrlInput = document.getElementById('sheetUrlInput');
         const connectSheetBtn = document.getElementById('connectSheetBtn');
         const sheetInfoDiv = document.getElementById('sheetInfo');
@@ -947,56 +910,6 @@
                 showToast('Error ' + operation + ': ' + error.message, 'error');
             }
             hideLoading();
-        }
-
-        // Switch between Excel and Google Sheets
-        function switchSource(source) {
-            currentSource = source;
-            
-            if (source === 'excel') {
-                excelBtn.classList.add('active');
-                sheetsBtn.classList.remove('active');
-                excelSection.classList.remove('hidden');
-                sheetsSection.classList.add('hidden');
-            } else {
-                excelBtn.classList.remove('active');
-                sheetsBtn.classList.add('active');
-                excelSection.classList.add('hidden');
-                sheetsSection.classList.remove('hidden');
-            }
-        }
-
-        // Setup Excel event listeners
-        function setupExcelEventListeners() {
-            // File drop zone
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.classList.add('dragover');
-            });
-
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('dragover');
-            });
-
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('dragover');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    handleFile(files[0]);
-                }
-            });
-
-            // File input
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    handleFile(e.target.files[0]);
-                }
-            });
-
-            // Clear file
-            clearFileBtn.addEventListener('click', clearFile);
         }
 
         // Setup other event listeners
@@ -1208,21 +1121,7 @@
             }
         }
 
-        // Call Google Apps Script function
-        async function callGAS(functionName, params) {
-            return new Promise((resolve, reject) => {
-                // Check if google.script.run is available
-                if (typeof google === 'undefined' || !google.script || !google.script.run) {
-                    reject(new Error('Google Apps Script API not available. Please run this app through Google Apps Script Web App or a hosted server.'));
-                    return;
-                }
-                
-                google.script.run
-                    .withSuccessHandler(resolve)
-                    .withFailureHandler(reject)
-                    [functionName](params);
-            });
-        }
+
 
         // Handle missing Google API gracefully
         function handleGASError(error, operation) {
@@ -1761,22 +1660,13 @@
 
         // Initialize
         function init() {
-            // Load saved sheet URL
-            const savedUrl = localStorage.getItem('sheetUrl');
+            // Load saved sheet URL or use default
+            const savedUrl = localStorage.getItem('sheetUrl') || sheetUrlInput.value.trim();
             if (savedUrl) {
                 sheetUrlInput.value = savedUrl;
+                // Auto-connect to Google Sheet
+                connectToSheet();
             }
-
-            // Check if previously connected
-            const wasConnected = localStorage.getItem('sheetConnected') === 'true';
-            if (wasConnected && savedUrl) {
-                sheetUrl = savedUrl;
-                isConnectedToSheet = true;
-                showSheetConnectedUI();
-            }
-
-            // Event listeners for Excel
-            setupExcelEventListeners();
 
             // Event listeners for other elements
             setupOtherEventListeners();
