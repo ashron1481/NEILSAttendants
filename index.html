@@ -875,18 +875,16 @@
             googleApiLoaded = false;
         }
 
-        // Call Google Apps Script function via HTTP POST
+        // Call Google Apps Script function via HTTP GET
         async function callGAS(functionName, params) {
-            // Build the full URL for the deployed web app
-            const url = GAS_WEB_APP_URL + '?function=' + functionName + '&action=call';
+            // Build query string from params
+            const queryParams = new URLSearchParams(params).toString();
+            const url = GAS_WEB_APP_URL + '?function=' + functionName + (queryParams ? '&' + queryParams : '');
             
             try {
                 const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(params)
+                    method: 'GET',
+                    mode: 'cors'
                 });
                 
                 if (!response.ok) {
