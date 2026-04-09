@@ -7,7 +7,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
-    <script async defer src="https://apis.google.com/js/api.js" onerror="handleApiLoadError()"></script>
     <style>
         * {
             margin: 0;
@@ -900,27 +899,54 @@
         // IMPORTANT: Replace this with your deployed GAS web app URL
         const GAS_WEB_APP_URL = 'YOUR_DEPLOYED_GAS_WEB_APP_URL';
 
-        // Initialize
-        function init() {
-            // Load saved sheet URL
-            const savedUrl = localStorage.getItem('sheetUrl');
-            if (savedUrl) {
-                sheetUrlInput.value = savedUrl;
+        // Check if Google API is loaded
+        let googleApiLoaded = false;
+
+        function handleApiLoad() {
+            googleApiLoaded = true;
+            console.log('Google API loaded successfully');
+        }
+
+        function handleApiLoadError() {
+            console.log('Google API not loaded - will use HTTP approach');
+            googleApiLoaded = false;
+        }
+
+        // Call Google Apps Script function via HTTP POST
+        async function callGAS(functionName, params) {
+            // Build the full URL for the deployed web app
+            const url = GAS_WEB_APP_URL + '?function=' + functionName + '&action=call';
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(params)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP error: ' + response.status);
+                }
+                
+                const result = await response.json();
+                return result;
+            } catch (e) {
+                console.error('GAS HTTP call error:', e);
+                throw e;
             }
+        }
 
-            // Check if previously connected
-            const wasConnected = localStorage.getItem('sheetConnected') === 'true';
-            if (wasConnected && savedUrl) {
-                sheetUrl = savedUrl;
-                isConnectedToSheet = true;
-                showSheetConnectedUI();
+        // Handle missing Google API gracefully
+        function handleGASError(error, operation) {
+            console.error('GAS Error:', error);
+            if (error.message && error.message.includes('Google Apps Script API not available')) {
+                showToast('Google Sheets mode requires a deployed Web App URL. Please update GAS_WEB_APP_URL in the code.', 'error');
+            } else {
+                showToast('Error ' + operation + ': ' + error.message, 'error');
             }
-
-            // Event listeners for Excel
-            setupExcelEventListeners();
-
-            // Event listeners for other elements
-            setupOtherEventListeners();
+            hideLoading();
         }
 
         // Switch between Excel and Google Sheets
@@ -1731,6 +1757,29 @@
             renderTable();
             updateStats();
             hideAddAttendantModal();
+        }
+
+        // Initialize
+        function init() {
+            // Load saved sheet URL
+            const savedUrl = localStorage.getItem('sheetUrl');
+            if (savedUrl) {
+                sheetUrlInput.value = savedUrl;
+            }
+
+            // Check if previously connected
+            const wasConnected = localStorage.getItem('sheetConnected') === 'true';
+            if (wasConnected && savedUrl) {
+                sheetUrl = savedUrl;
+                isConnectedToSheet = true;
+                showSheetConnectedUI();
+            }
+
+            // Event listeners for Excel
+            setupExcelEventListeners();
+
+            // Event listeners for other elements
+            setupOtherEventListeners();
         }
 
         // Initialize on load
